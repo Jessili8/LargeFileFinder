@@ -16,7 +16,7 @@ namespace LargeFileFinder
             dgFiles.ItemsSource = Files;
         }
 
-        private void BtnScan_Click(object sender, RoutedEventArgs e)
+        private async void BtnScan_Click(object sender, RoutedEventArgs e)
         {
             Files.Clear();
             string path = txtSearchPath.Text;
@@ -39,53 +39,92 @@ namespace LargeFileFinder
 
             long sizeLimitBytes = sizeLimit * multiplier;
 
+            // Show progress window
+            ProgressWindow progressWindow = new ProgressWindow
+            {
+                Owner = this
+            };
+            progressWindow.Show();
+
             try
             {
-                foreach (var file in SafeEnumerateFiles(path, "*.*"))
+                int foundFiles = 0;
+                await Task.Run(() =>
                 {
-                    FileInfo fileInfo = new(file);
-                    if (fileInfo.Length > sizeLimitBytes)
+                    progressWindow.Dispatcher.Invoke(() => progressWindow.UpdateStatus("Scanning directories..."));
+
+                    foreach (var file in SafeEnumerateFiles(path, "*.*", progressWindow))
                     {
-                        Files.Add(new FileDetail
+                        FileInfo fileInfo = new(file);
+                        progressWindow.Dispatcher.Invoke(() => progressWindow.UpdateStatus("Checking file sizes..."));
+
+                        if (fileInfo.Length > sizeLimitBytes)
                         {
-                            FileName = fileInfo.Name,
-                            SizeMB = fileInfo.Length / (1024 * 1024),
-                            FullPath = fileInfo.FullName,
-                            LastModified = fileInfo.LastWriteTime
-                        });
+                            foundFiles++;
+                            Dispatcher.Invoke(() =>
+                            {
+                                Files.Add(new FileDetail
+                                {
+                                    FileName = fileInfo.Name,
+                                    SizeMB = fileInfo.Length / (1024 * 1024),
+                                    FullPath = fileInfo.FullName,
+                                    LastModified = fileInfo.LastWriteTime
+                                });
+                                progressWindow.UpdateFoundFiles(foundFiles);
+                            });
+                        }
                     }
-                }
+                    progressWindow.Dispatcher.Invoke(() => progressWindow.UpdateStatus("Scan completed!"));
+                });
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
+            }
+            finally
+            {
+                progressWindow.Close();
             }
 
             MessageBox.Show($"Done. Found {Files.Count} large files.", "Done!", MessageBoxButton.OK, MessageBoxImage.Information);
             txtStatus.Text = $"Found {Files.Count} large files.";
         }
 
-        private static List<string> SafeEnumerateFiles(string path, string searchPattern)
+        private static List<string> SafeEnumerateFiles(string path, string searchPattern, ProgressWindow progressWindow = null)
         {
             Queue<string> directories = new();
             directories.Enqueue(path);
 
-            List<string> safeEnumerateFiles = [];
+            List<string> enumerateFiles = [];
             while (directories.Count > 0)
             {
                 try
                 {
                     string currentDir = directories.Dequeue();
-                    safeEnumerateFiles.AddRange(Directory.GetFiles(currentDir, searchPattern));
+                    progressWindow?.UpdateCurrentDirectory(currentDir);
+                    
+                    // Get all files in current directory
+                    var files = Directory.GetFiles(currentDir, searchPattern);
+                    enumerateFiles.AddRange(files);
+                    
+                    // Add subdirectories to queue
                     foreach (var dir in Directory.GetDirectories(currentDir))
                     {
                         directories.Enqueue(dir);
                     }
                 }
-                catch (UnauthorizedAccessException) { } // Ignore directories we can't access
+                catch (UnauthorizedAccessException) 
+                { 
+                    // Ignore directories we can't access
+                    progressWindow?.UpdateStatus("Skipping restricted directory...");
+                }
+                catch (Exception ex)
+                {
+                    progressWindow?.UpdateStatus($"Error: {ex.Message}");
+                }
             }
 
-            return safeEnumerateFiles;
+            return enumerateFiles;
         }
 
         private void BtnSelectAll_Click(object sender, RoutedEventArgs e)
