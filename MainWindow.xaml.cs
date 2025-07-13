@@ -16,7 +16,7 @@ namespace LargeFileFinder
             dgFiles.ItemsSource = Files;
         }
 
-        private void BtnScan_Click(object sender, RoutedEventArgs e)
+        private async void BtnScan_Click(object sender, RoutedEventArgs e)
         {
             Files.Clear();
             string path = txtSearchPath.Text;
@@ -49,28 +49,33 @@ namespace LargeFileFinder
             try
             {
                 int foundFiles = 0;
-                progressWindow.UpdateStatus("Scanning directories...");
-                
-                foreach (var file in SafeEnumerateFiles(path, "*.*", progressWindow))
+                await Task.Run(() =>
                 {
-                    FileInfo fileInfo = new(file);
-                    progressWindow.UpdateStatus("Checking file sizes...");
+                    progressWindow.Dispatcher.Invoke(() => progressWindow.UpdateStatus("Scanning directories..."));
 
-                    if (fileInfo.Length > sizeLimitBytes)
+                    foreach (var file in SafeEnumerateFiles(path, "*.*", progressWindow))
                     {
-                        foundFiles++;
-                        Files.Add(new FileDetail
+                        FileInfo fileInfo = new(file);
+                        progressWindow.Dispatcher.Invoke(() => progressWindow.UpdateStatus("Checking file sizes..."));
+
+                        if (fileInfo.Length > sizeLimitBytes)
                         {
-                            FileName = fileInfo.Name,
-                            SizeMB = fileInfo.Length / (1024 * 1024),
-                            FullPath = fileInfo.FullName,
-                            LastModified = fileInfo.LastWriteTime
-                        });
-                        progressWindow.UpdateFoundFiles(foundFiles);
+                            foundFiles++;
+                            Dispatcher.Invoke(() =>
+                            {
+                                Files.Add(new FileDetail
+                                {
+                                    FileName = fileInfo.Name,
+                                    SizeMB = fileInfo.Length / (1024 * 1024),
+                                    FullPath = fileInfo.FullName,
+                                    LastModified = fileInfo.LastWriteTime
+                                });
+                                progressWindow.UpdateFoundFiles(foundFiles);
+                            });
+                        }
                     }
-                }
-                
-                progressWindow.UpdateStatus("Scan completed!");
+                    progressWindow.Dispatcher.Invoke(() => progressWindow.UpdateStatus("Scan completed!"));
+                });
             }
             catch (Exception ex)
             {
