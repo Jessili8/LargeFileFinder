@@ -9,6 +9,7 @@ namespace LargeFileFinder
     public partial class MainWindow : Window
     {
         public ObservableCollection<FileDetail> Files { get; set; } = [];
+        private ObservableCollection<FileDetail> AllFiles { get; set; } = [];
 
         public MainWindow()
         {
@@ -40,7 +41,7 @@ namespace LargeFileFinder
             long sizeLimitBytes = sizeLimit * multiplier;
 
             // Show progress window
-            ProgressWindow progressWindow = new ProgressWindow
+            ProgressWindow progressWindow = new()
             {
                 Owner = this
             };
@@ -88,6 +89,7 @@ namespace LargeFileFinder
 
             MessageBox.Show($"Done. Found {Files.Count} large files.", "Done!", MessageBoxButton.OK, MessageBoxImage.Information);
             txtStatus.Text = $"Found {Files.Count} large files.";
+            AllFiles = new ObservableCollection<FileDetail>(Files); // For backup
         }
 
         private static List<string> SafeEnumerateFiles(string path, string searchPattern, ProgressWindow progressWindow = null)
@@ -131,6 +133,31 @@ namespace LargeFileFinder
         {
             foreach (var file in Files) file.IsSelected = true;
             dgFiles.Items.Refresh();
+        }
+
+        private void TxtSearch_TextChanged(object sender, RoutedEventArgs e)
+        {
+            string searchTerm = txtSearch.Text.ToLower();
+
+            var filteredFiles = string.IsNullOrWhiteSpace(searchTerm) 
+                ? AllFiles 
+                : new ObservableCollection<FileDetail>(AllFiles.Where(f => f.FileName.Contains(searchTerm, StringComparison.CurrentCultureIgnoreCase)));
+
+            Files.Clear();
+            foreach (var file in filteredFiles)
+            {
+                Files.Add(file);
+            }
+        }
+
+        private void BtnClearSearch_Click(object sender, RoutedEventArgs e)
+        {
+            txtSearch.Clear();
+            Files.Clear();
+            foreach (var file in AllFiles)
+            {
+                Files.Add(file);
+            }
         }
 
         private void BtnDeselectAll_Click(object sender, RoutedEventArgs e)
