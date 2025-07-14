@@ -10,7 +10,18 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Reference Include="Microsoft.VisualBasic" />
+    <None Remove="Images\logo.ico" />
+    <None Remove="Images\logo.png" />
+    <None Remove="logo.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Images\logo.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Images\logo.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Resource>
   </ItemGroup>
 
 </Project>

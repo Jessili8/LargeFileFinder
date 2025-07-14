@@ -5,16 +5,55 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:LargeFileFinder"
         mc:Ignorable="d"
+        Icon="Images/logo.ico"
         Title="Large File Finder" Height="600" Width="1000" WindowStartupLocation="CenterScreen">
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         
+        <!-- Logo and Title Section -->
+        <Grid Grid.Row="0" Background="#FF2C3E50" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- Logo -->
+            <Image x:Name="imgLogo" Grid.Column="0" 
+                   Width="48" Height="48" 
+                   Margin="15,10,10,10" 
+                   VerticalAlignment="Center"
+                   Source="pack://application:,,,/Images/logo.png"
+                   RenderOptions.BitmapScalingMode="HighQuality"/>
+            
+            <!-- Title and Version -->
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10">
+                <TextBlock Text="Large File Finder" 
+                           FontSize="24" 
+                           FontWeight="Bold" 
+                           Foreground="White"/>
+                <TextBlock Text="Find and manage large files on your system" 
+                           FontSize="12" 
+                           Foreground="#FFB0BEC5" 
+                           Margin="0,2,0,0"/>
+            </StackPanel>
+            
+            <!-- Version Info -->
+            <TextBlock Grid.Column="2" 
+                       Text="Copyright (c) 2025 Jessie Lo | v1.0.5" 
+                       FontSize="12" 
+                       Foreground="#FFB0BEC5" 
+                       VerticalAlignment="Bottom" 
+                       Margin="10,10,15,10"/>
+        </Grid>
+        
         <!-- Search Controls -->
-        <GroupBox Header="Search Settings" Grid.Row="0" Margin="10">
+        <GroupBox Header="Search Settings" Grid.Row="1" Margin="10">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -41,14 +80,33 @@
         </GroupBox>
         
         <!-- Results -->
-        <GroupBox Header="Large Files Found" Grid.Row="1" Margin="10">
+        <GroupBox Header="Large Files Found" Grid.Row="2" Margin="10">
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 
-                <DataGrid x:Name="dgFiles" Grid.Row="0" AutoGenerateColumns="False" 
+                <!-- Search Box -->
+                <Grid Grid.Row="0" Margin="5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <Label Grid.Column="0" Content="Search:" VerticalAlignment="Center"/>
+                    <TextBox x:Name="txtSearch" Grid.Column="1" Margin="5" 
+                             VerticalAlignment="Center" 
+                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                             TextChanged="TxtSearch_TextChanged"/>
+                    <Button x:Name="btnClearSearch" Grid.Column="2" Content="Clear" 
+                            Margin="5" Padding="8,3" 
+                            Click="BtnClearSearch_Click"/>
+                </Grid>
+                
+                <DataGrid x:Name="dgFiles" Grid.Row="1" AutoGenerateColumns="False" 
                          CanUserAddRows="False" CanUserDeleteRows="False" 
                          SelectionMode="Extended" GridLinesVisibility="Horizontal">
                     <DataGrid.Columns>
@@ -60,7 +118,7 @@
                     </DataGrid.Columns>
                 </DataGrid>
                 
-                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="5">
+                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="5">
                     <Button x:Name="btnSelectAll" Content="Select All" Margin="5" Padding="10,5" Click="BtnSelectAll_Click"/>
                     <Button x:Name="btnDeselectAll" Content="Deselect All" Margin="5" Padding="10,5" Click="BtnDeselectAll_Click"/>
                     <Button x:Name="btnOpenLocation" Content="Open Location" Margin="5" Padding="10,5" Click="BtnOpenLocation_Click" Background="#FF3498DB" Foreground="White"/>
@@ -71,7 +129,7 @@
         </GroupBox>
         
         <!-- Status Bar -->
-        <StatusBar Grid.Row="2">
+        <StatusBar Grid.Row="3">
             <StatusBarItem>
                 <TextBlock x:Name="txtStatus" Text="Ready" />
             </StatusBarItem>
