@@ -10,6 +10,7 @@ namespace LargeFileFinder
     {
         public ObservableCollection<FileDetail> Files { get; set; } = [];
         private ObservableCollection<FileDetail> AllFiles { get; set; } = [];
+        private CancellationTokenSource? _cancellationTokenSource;
 
         public MainWindow()
         {
@@ -40,43 +41,96 @@ namespace LargeFileFinder
 
             long sizeLimitBytes = sizeLimit * multiplier;
 
+            // Create cancellation token source
+            _cancellationTokenSource?.Cancel();
+            _cancellationTokenSource = new CancellationTokenSource();
+            var cancellationToken = _cancellationTokenSource.Token;
+
             // Show progress window
-            ProgressWindow progressWindow = new()
+            ProgressWindow progressWindow = new(this, _cancellationTokenSource)
             {
                 Owner = this
             };
             progressWindow.Show();
 
+            bool wasCancelled = false;
             try
             {
                 int foundFiles = 0;
+                List<FileDetail> batchBuffer = new(100);
+                const int BATCH_SIZE = 100;
+                int processedCount = 0;
+
                 await Task.Run(() =>
                 {
                     progressWindow.Dispatcher.Invoke(() => progressWindow.UpdateStatus("Scanning directories..."));
 
-                    foreach (var file in SafeEnumerateFiles(path, "*.*", progressWindow))
+                    foreach (var file in SafeEnumerateFiles(path, "*.*", sizeLimitBytes, progressWindow, cancellationToken))
                     {
-                        FileInfo fileInfo = new(file);
-                        progressWindow.Dispatcher.Invoke(() => progressWindow.UpdateStatus("Checking file sizes..."));
-
-                        if (fileInfo.Length > sizeLimitBytes)
+                        try
                         {
-                            foundFiles++;
-                            Dispatcher.Invoke(() =>
+                            FileInfo fileInfo = new(file);
+
+                            // Add to batch buffer
+                            batchBuffer.Add(new FileDetail
                             {
-                                Files.Add(new FileDetail
-                                {
-                                    FileName = fileInfo.Name,
-                                    SizeMB = fileInfo.Length / (1024 * 1024),
-                                    FullPath = fileInfo.FullName,
-                                    LastModified = fileInfo.LastWriteTime
-                                });
-                                progressWindow.UpdateFoundFiles(foundFiles);
+                                FileName = fileInfo.Name,
+                                SizeMB = fileInfo.Length / (1024 * 1024),
+                                FullPath = fileInfo.FullName,
+                                LastModified = fileInfo.LastWriteTime
                             });
+
+                            foundFiles++;
+                            processedCount++;
+
+                            // Update status every 100 files (throttle updates)
+                            if (processedCount % 100 == 0)
+                            {
+                                progressWindow.Dispatcher.BeginInvoke(() =>
+                                    progressWindow.UpdateStatus($"Found {foundFiles} large files..."));
+                            }
+
+                            // Update UI only when batch is full
+                            if (batchBuffer.Count >= BATCH_SIZE)
+                            {
+                                var batch = batchBuffer.ToList();
+                                batchBuffer.Clear();
+
+                                Dispatcher.Invoke(() =>
+                                {
+                                    foreach (var item in batch)
+                                        Files.Add(item);
+                                    progressWindow.UpdateFoundFiles(foundFiles);
+                                });
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            // Skip files that can't be accessed
+                            progressWindow.Dispatcher.BeginInvoke(() =>
+                                progressWindow.UpdateStatus($"Error accessing file: {ex.Message}"));
                         }
                     }
+
+                    // Add remaining items in batch
+                    if (batchBuffer.Count > 0)
+                    {
+                        var batch = batchBuffer.ToList();
+                        Dispatcher.Invoke(() =>
+                        {
+                            foreach (var item in batch)
+                                Files.Add(item);
+                            progressWindow.UpdateFoundFiles(foundFiles);
+                        });
+                    }
+
                     progressWindow.Dispatcher.Invoke(() => progressWindow.UpdateStatus("Scan completed!"));
-                });
+                }, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                wasCancelled = true;
+                txtStatus.Text = "Scan cancelled by user.";
             }
             catch (Exception ex)
             {
@@ -87,46 +141,106 @@ namespace LargeFileFinder
                 progressWindow.Close();
             }
 
-            MessageBox.Show($"Done. Found {Files.Count} large files.", "Done!", MessageBoxButton.OK, MessageBoxImage.Information);
-            txtStatus.Text = $"Found {Files.Count} large files.";
+            if (!wasCancelled)
+            {
+                MessageBox.Show($"Done. Found {Files.Count} large files.", "Done!", MessageBoxButton.OK, MessageBoxImage.Information);
+                txtStatus.Text = $"Found {Files.Count} large files.";
+            }
             AllFiles = new ObservableCollection<FileDetail>(Files); // For backup
         }
 
-        private static List<string> SafeEnumerateFiles(string path, string searchPattern, ProgressWindow progressWindow = null)
+        private static IEnumerable<string> SafeEnumerateFiles(
+            string path,
+            string searchPattern,
+            long sizeLimitBytes,
+            ProgressWindow? progressWindow = null,
+            CancellationToken cancellationToken = default)
         {
             Queue<string> directories = new();
             directories.Enqueue(path);
 
-            List<string> enumerateFiles = [];
+            // System directories to skip for better performance
+            string[] skipDirs =
+            {
+                "Windows",
+                "Program Files",
+                "Program Files (x86)",
+                "$Recycle.Bin",
+                "System Volume Information",
+                "PerfLogs",
+                "WindowsApps",
+                "WinSxS",
+                "ProgramData\\Microsoft\\Windows\\WER",
+                "AppData\\Local\\Temp"
+            };
+
             while (directories.Count > 0)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                string currentDir = directories.Dequeue();
+
+                // Skip system directories for performance
+                string dirName = Path.GetFileName(currentDir) ?? "";
+                if (skipDirs.Any(skip => dirName.Equals(skip, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                progressWindow?.Dispatcher.BeginInvoke(() => progressWindow.UpdateCurrentDirectory(currentDir));
+
                 try
                 {
-                    string currentDir = directories.Dequeue();
-                    progressWindow?.UpdateCurrentDirectory(currentDir);
-                    
-                    // Get all files in current directory
-                    var files = Directory.GetFiles(currentDir, searchPattern);
-                    enumerateFiles.AddRange(files);
-                    
-                    // Add subdirectories to queue
-                    foreach (var dir in Directory.GetDirectories(currentDir))
+                    // STREAMING: Use EnumerateFiles instead of GetFiles for memory efficiency
+                    foreach (var file in Directory.EnumerateFiles(currentDir, searchPattern))
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        try
+                        {
+                            // EARLY FILTERING: Check size immediately, only yield large files
+                            long fileSize = new FileInfo(file).Length;
+                            if (fileSize > sizeLimitBytes)
+                            {
+                                yield return file;
+                            }
+                        }
+                        catch (UnauthorizedAccessException)
+                        {
+                            // Skip files we can't access
+                        }
+                        catch (FileNotFoundException)
+                        {
+                            // File might have been deleted during scan
+                        }
+                        catch
+                        {
+                            // Skip other file access errors
+                        }
+                    }
+
+                    // Add subdirectories to queue using EnumerateDirectories for streaming
+                    foreach (var dir in Directory.EnumerateDirectories(currentDir))
                     {
                         directories.Enqueue(dir);
                     }
                 }
-                catch (UnauthorizedAccessException) 
-                { 
+                catch (UnauthorizedAccessException)
+                {
                     // Ignore directories we can't access
-                    progressWindow?.UpdateStatus("Skipping restricted directory...");
+                    progressWindow?.Dispatcher.BeginInvoke(() =>
+                        progressWindow.UpdateStatus("Skipping restricted directory..."));
+                }
+                catch (DirectoryNotFoundException)
+                {
+                    // Directory might have been deleted during scan
                 }
                 catch (Exception ex)
                 {
-                    progressWindow?.UpdateStatus($"Error: {ex.Message}");
+                    progressWindow?.Dispatcher.BeginInvoke(() =>
+                        progressWindow.UpdateStatus($"Error: {ex.Message}"));
                 }
             }
-
-            return enumerateFiles;
         }
 
         private void BtnSelectAll_Click(object sender, RoutedEventArgs e)

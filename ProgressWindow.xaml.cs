@@ -4,9 +4,14 @@ namespace LargeFileFinder
 {
     public partial class ProgressWindow : Window
     {
-        public ProgressWindow()
+        private readonly Window? _owner;
+        private readonly CancellationTokenSource? _cancellationTokenSource;
+
+        public ProgressWindow(Window? owner = null, CancellationTokenSource? cancellationTokenSource = null)
         {
             InitializeComponent();
+            _owner = owner;
+            _cancellationTokenSource = cancellationTokenSource;
         }
 
         public void UpdateProgress(string currentDirectory, string status, int foundFiles)
@@ -41,6 +46,16 @@ namespace LargeFileFinder
             {
                 txtStatus.Text = status;
             });
+        }
+
+        private void BtnCancel_Click(object sender, RoutedEventArgs e)
+        {
+            if (_cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested)
+            {
+                txtStatus.Text = "Cancelling scan...";
+                btnCancel.IsEnabled = false;
+                _cancellationTokenSource.Cancel();
+            }
         }
     }
 }
