@@ -41,6 +41,9 @@ namespace LargeFileFinder
 
             long sizeLimitBytes = sizeLimit * multiplier;
 
+            // Get skip system directories option
+            bool skipSystemDirectories = chkSkipSystemDirs.IsChecked ?? true;
+
             // Create cancellation token source
             _cancellationTokenSource?.Cancel();
             _cancellationTokenSource = new CancellationTokenSource();
@@ -65,7 +68,7 @@ namespace LargeFileFinder
                 {
                     progressWindow.Dispatcher.Invoke(() => progressWindow.UpdateStatus("Scanning directories..."));
 
-                    foreach (var file in SafeEnumerateFiles(path, "*.*", sizeLimitBytes, progressWindow, cancellationToken))
+                    foreach (var file in SafeEnumerateFiles(path, "*.*", sizeLimitBytes, skipSystemDirectories, progressWindow, cancellationToken))
                     {
                         try
                         {
@@ -153,13 +156,14 @@ namespace LargeFileFinder
             string path,
             string searchPattern,
             long sizeLimitBytes,
+            bool skipSystemDirectories = true,
             ProgressWindow? progressWindow = null,
             CancellationToken cancellationToken = default)
         {
             Queue<string> directories = new();
             directories.Enqueue(path);
 
-            // System directories to skip for better performance
+            // System directories to skip for better performance (when enabled)
             string[] skipDirs =
             {
                 "Windows",
@@ -180,11 +184,14 @@ namespace LargeFileFinder
 
                 string currentDir = directories.Dequeue();
 
-                // Skip system directories for performance
-                string dirName = Path.GetFileName(currentDir) ?? "";
-                if (skipDirs.Any(skip => dirName.Equals(skip, StringComparison.OrdinalIgnoreCase)))
+                // Skip system directories for performance (if option is enabled)
+                if (skipSystemDirectories)
                 {
-                    continue;
+                    string dirName = Path.GetFileName(currentDir) ?? "";
+                    if (skipDirs.Any(skip => dirName.Equals(skip, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        continue;
+                    }
                 }
 
                 progressWindow?.Dispatcher.BeginInvoke(() => progressWindow.UpdateCurrentDirectory(currentDir));

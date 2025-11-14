@@ -55,6 +55,10 @@
         <!-- Search Controls -->
         <GroupBox Header="Search Settings" Grid.Row="1" Margin="10">
             <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="80"/>
@@ -64,18 +68,30 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                
-                <Label Content="Minimum Size:" Grid.Column="0" VerticalAlignment="Center"/>
-                <TextBox x:Name="txtMinSize" Grid.Column="1" Text="100" Margin="5" VerticalAlignment="Center"/>
-                <ComboBox x:Name="cmbSizeUnit" Grid.Column="2" Margin="5" VerticalAlignment="Center" SelectedIndex="0">
+
+                <!-- First Row: Main Search Controls -->
+                <Label Content="Minimum Size:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"/>
+                <TextBox x:Name="txtMinSize" Grid.Row="0" Grid.Column="1" Text="100" Margin="5" VerticalAlignment="Center"/>
+                <ComboBox x:Name="cmbSizeUnit" Grid.Row="0" Grid.Column="2" Margin="5" VerticalAlignment="Center" SelectedIndex="0">
                     <ComboBoxItem Content="MB"/>
                     <ComboBoxItem Content="GB"/>
                     <ComboBoxItem Content="TB"/>
                 </ComboBox>
-                <Label Content="Search Path:" Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                <TextBox x:Name="txtSearchPath" Grid.Column="4" Text="C:\" Margin="5" VerticalAlignment="Center"/>
-                <Button x:Name="btnBrowse" Grid.Column="5" Content="Browse" Margin="5" Padding="10,5" Click="BtnBrowse_Click"/>
-                <Button x:Name="btnScan" Grid.Column="6" Content="Scan" Margin="5" Padding="10,5" Click="BtnScan_Click"/>
+                <Label Content="Search Path:" Grid.Row="0" Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                <TextBox x:Name="txtSearchPath" Grid.Row="0" Grid.Column="4" Text="C:\" Margin="5" VerticalAlignment="Center"/>
+                <Button x:Name="btnBrowse" Grid.Row="0" Grid.Column="5" Content="Browse" Margin="5" Padding="10,5" Click="BtnBrowse_Click"/>
+                <Button x:Name="btnScan" Grid.Row="0" Grid.Column="6" Content="Scan" Margin="5" Padding="10,5" Click="BtnScan_Click"/>
+
+                <!-- Second Row: Options -->
+                <CheckBox x:Name="chkSkipSystemDirs"
+                          Grid.Row="1"
+                          Grid.Column="0"
+                          Grid.ColumnSpan="4"
+                          Content="Skip system directories (Windows, Program Files, etc.) - Recommended for faster scanning"
+                          IsChecked="True"
+                          Margin="10,8,5,8"
+                          VerticalAlignment="Center"
+                          ToolTip="When enabled, skips common system directories like Windows, Program Files, $Recycle.Bin, etc. This significantly improves scan speed and reduces unnecessary results."/>
             </Grid>
         </GroupBox>
         
