@@ -68,13 +68,11 @@ namespace LargeFileFinder
                 {
                     progressWindow.Dispatcher.Invoke(() => progressWindow.UpdateStatus("Scanning directories..."));
 
-                    foreach (var file in SafeEnumerateFiles(path, "*.*", sizeLimitBytes, skipSystemDirectories, progressWindow, cancellationToken))
+                    foreach (var fileInfo in SafeEnumerateFiles(path, "*.*", sizeLimitBytes, skipSystemDirectories, progressWindow, cancellationToken))
                     {
                         try
                         {
-                            FileInfo fileInfo = new(file);
-
-                            // Add to batch buffer
+                            // Add to batch buffer (FileInfo already created in SafeEnumerateFiles)
                             batchBuffer.Add(new FileDetail
                             {
                                 FileName = fileInfo.Name,
@@ -152,7 +150,7 @@ namespace LargeFileFinder
             AllFiles = new ObservableCollection<FileDetail>(Files); // For backup
         }
 
-        private static IEnumerable<string> SafeEnumerateFiles(
+        private static IEnumerable<FileInfo> SafeEnumerateFiles(
             string path,
             string searchPattern,
             long sizeLimitBytes,
@@ -205,11 +203,12 @@ namespace LargeFileFinder
 
                         try
                         {
-                            // EARLY FILTERING: Check size immediately, only yield large files
-                            long fileSize = new FileInfo(file).Length;
-                            if (fileSize > sizeLimitBytes)
+                            // EARLY FILTERING: Create FileInfo once, check size, and yield if large
+                            // This eliminates duplicate FileInfo creation in the caller
+                            FileInfo fileInfo = new(file);
+                            if (fileInfo.Length > sizeLimitBytes)
                             {
-                                yield return file;
+                                yield return fileInfo;
                             }
                         }
                         catch (UnauthorizedAccessException)
