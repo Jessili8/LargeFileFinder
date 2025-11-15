@@ -105,11 +105,17 @@ namespace LargeFileFinder
                                 });
                             }
                         }
-                        catch (Exception ex)
+                        catch (UnauthorizedAccessException ex)
                         {
-                            // Skip files that can't be accessed
+                            // Skip files that can't be accessed due to permissions
                             progressWindow.Dispatcher.BeginInvoke(() =>
-                                progressWindow.UpdateStatus($"Error accessing file: {ex.Message}"));
+                                progressWindow.UpdateStatus($"Access denied: {ex.Message}"));
+                        }
+                        catch (IOException ex)
+                        {
+                            // Skip files with I/O errors (file in use, deleted, etc.)
+                            progressWindow.Dispatcher.BeginInvoke(() =>
+                                progressWindow.UpdateStatus($"I/O error: {ex.Message}"));
                         }
                     }
 
