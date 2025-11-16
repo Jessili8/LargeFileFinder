@@ -66,7 +66,7 @@ namespace LargeFileFinder
 
                 await Task.Run(() =>
                 {
-                    progressWindow.Dispatcher.Invoke(() => progressWindow.UpdateStatus("Scanning directories..."));
+                    progressWindow.Dispatcher.BeginInvoke(() => progressWindow.UpdateStatus("Scanning directories..."));
 
                     foreach (var fileInfo in SafeEnumerateFiles(path, "*.*", sizeLimitBytes, skipSystemDirectories, progressWindow, cancellationToken))
                     {
