@@ -1,9 +1,9 @@
 <Window x:Class="LargeFileFinder.ProgressWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Scanning for Large Files" 
-        Height="180" 
-        Width="450" 
+        Title="Scanning for Large Files"
+        Height="220"
+        Width="450"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         WindowStyle="ToolWindow">
@@ -15,6 +15,8 @@
             <RowDefinition Height="15"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="20"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="15"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         
@@ -43,14 +45,54 @@
         
         <!-- Status and found files count -->
         <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Center">
-            <TextBlock x:Name="txtStatus" 
-                       Text="Starting scan..." 
+            <TextBlock x:Name="txtStatus"
+                       Text="Starting scan..."
                        FontSize="11"/>
-            <TextBlock x:Name="txtFoundFiles" 
-                       Text=" | Found: 0 files" 
-                       FontSize="11" 
+            <TextBlock x:Name="txtFoundFiles"
+                       Text=" | Found: 0 files"
+                       FontSize="11"
                        Foreground="#FF27AE60"
                        Margin="10,0,0,0"/>
         </StackPanel>
+
+        <!-- Cancel button -->
+        <Button Grid.Row="8"
+                x:Name="btnCancel"
+                Content="Cancel Scan"
+                Width="120"
+                Height="30"
+                HorizontalAlignment="Center"
+                Click="BtnCancel_Click"
+                Background="#FFE74C3C"
+                Foreground="White"
+                FontWeight="SemiBold"
+                BorderThickness="0"
+                Cursor="Hand">
+            <Button.Style>
+                <Style TargetType="Button">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="4">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                    <Style.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="#FFC0392B"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Background" Value="#FFBDC3C7"/>
+                            <Setter Property="Foreground" Value="#FF7F8C8D"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </Button.Style>
+        </Button>
     </Grid>
 </Window>
