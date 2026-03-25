@@ -66,7 +66,7 @@ namespace LargeFileFinder
 
                 await Task.Run(() =>
                 {
-                    progressWindow.Dispatcher.Invoke(() => progressWindow.UpdateStatus("Scanning directories..."));
+                    progressWindow.Dispatcher.BeginInvoke(() => progressWindow.UpdateStatus("Scanning directories..."));
 
                     foreach (var fileInfo in SafeEnumerateFiles(path, "*.*", sizeLimitBytes, skipSystemDirectories, progressWindow, cancellationToken))
                     {
@@ -182,6 +182,7 @@ namespace LargeFileFinder
                 "AppData\\Local\\Temp"
             };
 
+            var files = new List<FileInfo>();
             while (directories.Count > 0)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -198,7 +199,7 @@ namespace LargeFileFinder
                     }
                 }
 
-                progressWindow?.Dispatcher.BeginInvoke(() => progressWindow.UpdateCurrentDirectory(currentDir));
+                progressWindow?.Dispatcher.BeginInvoke(() => progressWindow.UpdateCurrentDirectory(currentDir)); bool fileInfoValid = false;
 
                 try
                 {
@@ -207,15 +208,13 @@ namespace LargeFileFinder
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
+                        FileInfo? fileInfo = null;
                         try
                         {
                             // EARLY FILTERING: Create FileInfo once, check size, and yield if large
                             // This eliminates duplicate FileInfo creation in the caller
-                            FileInfo fileInfo = new(file);
-                            if (fileInfo.Length > sizeLimitBytes)
-                            {
-                                yield return fileInfo;
-                            }
+                            fileInfo = new FileInfo(file);
+                            fileInfoValid = fileInfo.Length > sizeLimitBytes;
                         }
                         catch (UnauthorizedAccessException)
                         {
@@ -228,6 +227,11 @@ namespace LargeFileFinder
                         catch
                         {
                             // Skip other file access errors
+                        }
+
+                        if (fileInfoValid && fileInfo != null)
+                        {
+                            files.Add(fileInfo);
                         }
                     }
 
@@ -253,6 +257,8 @@ namespace LargeFileFinder
                         progressWindow.UpdateStatus($"Error: {ex.Message}"));
                 }
             }
+
+            return files;
         }
 
         private void BtnSelectAll_Click(object sender, RoutedEventArgs e)
@@ -321,6 +327,7 @@ namespace LargeFileFinder
                 {
                     File.Delete(file.FullPath);
                     Files.Remove(file);
+                    AllFiles.Remove(file);
                     deletedCount++;
                 }
                 catch (Exception ex) 
@@ -426,9 +433,9 @@ namespace LargeFileFinder
 
     public class FileDetail
     {
-        public string FileName { get; set; }
+        public required string FileName { get; set; }
         public long SizeMB { get; set; }
-        public string FullPath { get; set; }
+        public required string FullPath { get; set; }
         public DateTime LastModified { get; set; }
         public bool IsSelected { get; set; }
     }
