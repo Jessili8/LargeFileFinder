@@ -8,13 +8,15 @@ A powerful WPF application for Windows that helps you find, manage, and clean up
 - Scan any directory (including entire drives) for large files
 - Configurable size thresholds with flexible units (MB, GB, TB)
 - Recursive directory scanning with permission-aware access
-- Real-time progress tracking
+- Real-time progress tracking with a cancellable progress window
+- Optional skipping of common system directories for faster scans
 
 ### 📊 **Detailed File Information**
 - File name and full path display
 - File size in MB with precise calculations
 - Last modified date for better file management
 - Sortable data grid for easy browsing
+- Live search box to filter results by file name
 
 ### 🛠️ **File Management Actions**
 - **Select/Deselect All**: Bulk selection controls
@@ -46,7 +48,7 @@ The application features a clean, organized interface with:
 ## System Requirements
 
 - **Operating System**: Windows 10/11 (x64)
-- **.NET Runtime**: .NET 9.0 or later
+- **.NET Runtime**: .NET 10.0 or later
 - **Framework**: WPF (Windows Presentation Foundation)
 - **Additional**: Windows Forms support for folder browser dialog
 
@@ -69,7 +71,7 @@ The application features a clean, organized interface with:
    ```bash
    dotnet publish -c Release -r win-x64 --self-contained
    ```
-2. **Find executable** in: `bin\Release\net9.0-windows\win-x64\publish\`
+2. **Find executable** in: `bin\Release\net10.0-windows7.0\win-x64\publish\`
 
 ## Usage Guide
 
@@ -79,14 +81,17 @@ The application features a clean, organized interface with:
 - **Search Path**: 
   - Type the path manually (e.g., `C:\`, `D:\Users\`)
   - Use the **Browse** button to select a folder graphically
+- **Skip system directories**: Leave checked (recommended) to skip folders like Windows, Program Files, and `$Recycle.Bin` for faster scans; uncheck to scan everything
 
 ### 2. **Start Scanning**
 - Click the **Scan** button to begin searching
-- Wait for the scan to complete (status shown in status bar)
+- A progress window shows the current directory and running file count
+- Click **Cancel Scan** at any time to stop early
 - Found files will appear in the results grid
 
 ### 3. **Review Results**
 - **Sort columns** by clicking column headers
+- **Filter results** by typing in the **Search** box; click **Clear** to restore the full list
 - **Review file information**: name, size, path, last modified date
 - **Select files** using the checkboxes in the first column
 
@@ -124,7 +129,7 @@ The application features a clean, organized interface with:
 ## Technical Details
 
 ### **Architecture**
-- **Framework**: WPF (.NET 9.0)
+- **Framework**: WPF (.NET 10.0)
 - **Language**: C# with modern language features
 - **UI Pattern**: MVVM-like with ObservableCollection
 - **File Operations**: Native .NET File I/O + VB.NET FileSystem for recycle bin
@@ -132,8 +137,9 @@ The application features a clean, organized interface with:
 ### **Key Components**
 - **MainWindow.xaml**: UI layout and controls
 - **MainWindow.xaml.cs**: Application logic and event handlers
+- **ProgressWindow**: Cancellable progress dialog shown during scans
 - **FileDetail**: Data model for file information
-- **SafeEnumerateFiles**: Recursive directory scanning with error handling
+- **SafeEnumerateFiles**: Breadth-first directory scanning that streams results via a callback, with per-file error handling and cancellation support
 
 ### **Safety Mechanisms**
 - **Permission handling**: Gracefully skips inaccessible directories
@@ -179,11 +185,13 @@ This project is provided as-is for educational and personal use.
 
 ## Version History
 
-### v1.0.0 (Current)
-- Initial release
+### v1.0.5 (Current)
 - Core file scanning functionality
 - WPF user interface
-- File management operations
+- File management operations (delete / move to Recycle Bin)
+- Live search box to filter results
+- Cancellable scans with a progress window
+- Optional skipping of system directories
 - Safety confirmations
 - Folder browser integration
 
