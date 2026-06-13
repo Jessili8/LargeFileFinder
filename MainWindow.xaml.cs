@@ -68,7 +68,7 @@ namespace LargeFileFinder
                 {
                     progressWindow.Dispatcher.BeginInvoke(() => progressWindow.UpdateStatus("Scanning directories..."));
 
-                    foreach (var fileInfo in SafeEnumerateFiles(path, "*.*", sizeLimitBytes, skipSystemDirectories, progressWindow, cancellationToken))
+                    SafeEnumerateFiles(path, "*.*", sizeLimitBytes, fileInfo =>
                     {
                         try
                         {
@@ -111,7 +111,7 @@ namespace LargeFileFinder
                             progressWindow.Dispatcher.BeginInvoke(() =>
                                 progressWindow.UpdateStatus($"Error accessing file: {ex.Message}"));
                         }
-                    }
+                    }, skipSystemDirectories, progressWindow, cancellationToken);
 
                     // Add remaining items in batch
                     if (batchBuffer.Count > 0)
@@ -150,10 +150,11 @@ namespace LargeFileFinder
             AllFiles = new ObservableCollection<FileDetail>(Files); // For backup
         }
 
-        private static IEnumerable<FileInfo> SafeEnumerateFiles(
+        private static void SafeEnumerateFiles(
             string path,
             string searchPattern,
             long sizeLimitBytes,
+            Action<FileInfo> onFound,
             bool skipSystemDirectories = true,
             ProgressWindow? progressWindow = null,
             CancellationToken cancellationToken = default)
@@ -176,7 +177,6 @@ namespace LargeFileFinder
                 "AppData\\Local\\Temp"
             };
 
-            var files = new List<FileInfo>();
             while (directories.Count > 0)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -193,7 +193,7 @@ namespace LargeFileFinder
                     }
                 }
 
-                progressWindow?.Dispatcher.BeginInvoke(() => progressWindow.UpdateCurrentDirectory(currentDir)); bool fileInfoValid = false;
+                progressWindow?.Dispatcher.BeginInvoke(() => progressWindow.UpdateCurrentDirectory(currentDir));
 
                 try
                 {
@@ -202,13 +202,14 @@ namespace LargeFileFinder
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
-                        FileInfo? fileInfo = null;
+                        FileInfo? largeFile = null;
                         try
                         {
-                            // EARLY FILTERING: Create FileInfo once, check size, and yield if large
-                            // This eliminates duplicate FileInfo creation in the caller
-                            fileInfo = new FileInfo(file);
-                            fileInfoValid = fileInfo.Length > sizeLimitBytes;
+                            // EARLY FILTERING: create FileInfo once and keep it only if it's large.
+                            // This eliminates duplicate FileInfo creation in the caller.
+                            var fileInfo = new FileInfo(file);
+                            if (fileInfo.Length > sizeLimitBytes)
+                                largeFile = fileInfo;
                         }
                         catch (UnauthorizedAccessException)
                         {
@@ -223,9 +224,9 @@ namespace LargeFileFinder
                             // Skip other file access errors
                         }
 
-                        if (fileInfoValid && fileInfo != null)
+                        if (largeFile != null)
                         {
-                            files.Add(fileInfo);
+                            onFound(largeFile);
                         }
                     }
 
@@ -251,8 +252,6 @@ namespace LargeFileFinder
                         progressWindow.UpdateStatus($"Error: {ex.Message}"));
                 }
             }
-
-            return files;
         }
 
         private void BtnSelectAll_Click(object sender, RoutedEventArgs e)
@@ -362,10 +361,11 @@ namespace LargeFileFinder
             {
                 try
                 {
-                    FileSystem.DeleteFile(file.FullPath, 
-                        UIOption.OnlyErrorDialogs, 
+                    FileSystem.DeleteFile(file.FullPath,
+                        UIOption.OnlyErrorDialogs,
                         RecycleOption.SendToRecycleBin);
                     Files.Remove(file);
+                    AllFiles.Remove(file);
                     movedCount++;
                 }
                 catch (Exception ex) 
