@@ -28,7 +28,7 @@ A powerful WPF application for Windows that helps you find, manage, and clean up
 - Confirmation dialogs for all destructive actions
 - Different warning levels for permanent deletion vs. recycle bin
 - Individual file error reporting
-- Safe directory enumeration (skips inaccessible folders)
+- Safe directory enumeration (skips inaccessible folders and doesn't follow junctions or symlinks)
 
 ### 🎯 **User-Friendly Interface**
 - Clean, modern WPF interface
